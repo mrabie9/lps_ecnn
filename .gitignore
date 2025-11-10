@@ -2,3 +2,4 @@ __pycache__/
 *.pt
 */test.npz
 */train.npz
+logs/*

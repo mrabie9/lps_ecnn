@@ -77,7 +77,7 @@ datasets = {
     "USRP"    : {"models" : "usrp/exp-usrp-DS-highlr-2/", "tasks" : "usrp/tasks - 1t-1024slices-norm-3tasks/", "num_classes":18},
     "LoRa"    : {"models" : "rfmls/exp-lora-2/", "tasks" : "rfmls/tasks_lp_downsampled/", "num_classes":10},
     "mixed-comms"    : {"models" : "mixed/exp-mixed-sm/", "tasks" : "mixed/tasks-sm/", "num_classes":15, "offset":[0]},
-    "Radar"    : {"models" : "radar/exp-radar-mixed-3-nodyn/", "tasks" : "radar/tasks-mixed/", "num_classes":11, "offset": [0,6,11]}
+    "Radar"    : {"models" : "radar/exp-radar-elc/", "tasks" : "radar/tasks-mixed/", "num_classes":11, "offset": [0,6,11]}
 }
 args = args_class("")
 args.multi_head = False
@@ -92,7 +92,7 @@ task_configs = [
     # {"file": "task2/rfnet16.pt", "task": "task2", "offset": 11},
 ]
 
-dataset_paths = ["/home/lunet/wsmr11/repos/radar/snr_grouped_processed", "/home/lunet/wsmr11/repos/radar/snr_splits"]
+dataset_paths = ["/home/lunet/wsmr11/repos/radar/snr_splits_radchar", "/home/lunet/wsmr11/repos/radar/snr_splits_radnist"]
 snr_range = list(range(-20, 20, 2))
 
 fig, axs = plt.subplots(2, 2, dpi=200, figsize=(12, 10))  # 3 tasks × (CM + uncertainty)
@@ -108,7 +108,7 @@ for i, config in enumerate(task_configs):
     
     # Load model and mask
     model = ResNet18_1d(slice_size=1024, num_classes=datasets[dataset]['num_classes'])#, classes_per_task=[2,3,3])
-    model.load_state_dict(torch.load(model_path + file))
+    model.load_state_dict(torch.load(model_path + file), strict=True)
     
     if os.path.exists(datasets[dataset]['models'] + f"{task}/cumu_mask.pkl"):
         trained_mask = pickle.load(open(datasets[dataset]['models'] + f"{task}/cumu_mask.pkl", 'rb'))
@@ -122,7 +122,7 @@ for i, config in enumerate(task_configs):
     # Load data
     base_path = save_path = datasets[dataset]['tasks'] + task
     pipeline = CVTrainValTest(base_path=base_path, save_path=save_path)
-    train_loader = pipeline.load_data_dronerc(256, offset=offset)
+    train_loader = pipeline.load_data_dronerc(256, offset=offset, args=args)
     
     eval_snr = True
     if eval_snr:
@@ -139,7 +139,7 @@ for i, config in enumerate(task_configs):
             # y = data['yte']
             print(datasets[dataset]['models'])
             save_file = datasets[dataset]['models'] + f"{task}/snr{snr}_outputs.pkl"
-            train_loader = pipeline.load_data_dronerc(256, offset=offset, data = path, mixed_snrs=True)
+            train_loader = pipeline.load_data_dronerc(256, offset=offset, data = path, mixed_snrs=True, args=args)
             # loader = pipeline.convert_to_loader(x, y, batch_size=256)
             if False: #os.path.exists(save_file):
                 all_labels, all_preds, unique_labels, omega, pred_class, util, inv_util = load_test_outputs(save_file)
@@ -166,13 +166,13 @@ for i, config in enumerate(task_configs):
             m_single_norm = m_single / (1 - m_omega.unsqueeze(1) + 1e-8)
             aleatoric = -(m_single_norm * (m_single_norm + 1e-8).log()).sum(dim=1)
 
-            sweep_results = sweep_thresholds(all_labels, all_preds, u=list(aleatoric+inv_util))
+            sweep_results = sweep_thresholds(all_labels, all_preds, u=list(inv_util))
             best = choose_tau(sweep_results, target_coverage=0.95)  # accept ~80% most-certain
 
-            accepted, y_hat_acc, sets_rej, metrics = selective_with_set_fallback(
-                all_labels, all_preds, inv_util, tau=best["tau"],
-                m_single=util, m_omega=omega, rule="betp", alpha=0.1, k=2
-            )
+            # accepted, y_hat_acc, sets_rej, metrics = selective_with_set_fallback(
+            #     all_labels, all_preds, inv_util, tau=best["tau"],
+            #     m_single=util, m_omega=omega, rule="betp", alpha=0.1, k=2
+            # )
 
             accept_mask = inv_util <= best["tau"]
 
