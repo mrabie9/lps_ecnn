@@ -33,13 +33,15 @@ smooth: false
 smooth-eps: 0.0
 no-tricks: false
 dataset: "dronerc"
-task-folder: "tasks-sw-nonorm-0db"
-exp-name: "exp-radar-0db"
+task-folder: "tasks-noisy-radchar"
+exp-name: "exp-radar-elc-noisy-radhcar"
 base-path: ""
 save-path: ""
 input-size: 2048 # 16382
-classes: 6
-tasks: 1
+classes: 12
+tasks: 2
+multi-head: True
+classes-per-task: [6,6]
 mask: ""
 config-file: ""
 config-setting: "1"
@@ -53,4 +55,4 @@ epochs-prune: 30
 epochs-mask-retrain: 30
 mask-admm-epochs: 1
 load-model: "" #"radar/exp-radar-mixed-3offset/task0/rfnet16.pt" 
-load-model-pruned: "" # "radar/exp-radar-mixed-splitheads/task0/retrained.pt"
+load-model-pruned: "radar/exp-radar-elc-noisy-radhcar/task0/retrained.pt" #"radar/exp-radar-elc/task0/cumu_model.pt" # "radar/exp-radar-mixed-splitheads/task0/retrained.pt"

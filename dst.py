@@ -24,7 +24,6 @@ class Distance_layer(torch.nn.Module):
                 un_mass = torch.cat([un_mass, un_mass_i], -1)
         return un_mass
 
-
 class DistanceActivation_layer(torch.nn.Module):
     '''
     verified

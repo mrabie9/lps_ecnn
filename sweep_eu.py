@@ -70,29 +70,64 @@ def sweep_thresholds(y_true, y_proba, u=None, taus=None, utility=None):
         out["utility"] = np.array(utils)
     return out
 
+# def choose_tau(results, target_coverage=None, max_risk=None, maximize_utility=False): 
+#     cov, risk = results["coverage"], results["sel_risk"] 
+#     if cov.size == 0: 
+#         return {k: np.nan for k in results} 
+#     idx = None 
+#     if maximize_utility and "utility" in results: 
+#         idx = np.nanargmax(results["utility"]) 
+#     elif target_coverage is not None: 
+#         # Smallest risk among τ with coverage ≥ target 
+#         mask = cov >= target_coverage 
+#         if mask.any(): 
+#             idx = np.nanargmin(np.where(mask, risk, np.inf)) 
+#         elif max_risk is not None: # Largest coverage among τ with risk ≤ max_risk 
+#             mask = risk <= max_risk 
+#         if mask.any(): 
+#             idx = np.nanargmax(np.where(mask, cov, -np.inf)) 
+#         else: # Fallback: maximize accuracy*coverage (balanced) 
+#             score = (1.0 - risk) * cov 
+#             idx = np.nanargmax(score) 
+#     return {k: v[idx] for k, v in results.items()}
+
 def choose_tau(results, target_coverage=None, max_risk=None, maximize_utility=False):
     cov, risk = results["coverage"], results["sel_risk"]
+    if cov.size == 0:
+        return {k: np.nan for k in results}
+
     idx = None
+
     if maximize_utility and "utility" in results:
         idx = np.nanargmax(results["utility"])
+
     elif target_coverage is not None:
-        # Smallest risk among τ with coverage ≥ target
-        mask = cov >= target_coverage
-        if mask.any():
-            idx = np.nanargmin(np.where(mask, risk, np.inf))
+        # Match a specific coverage (float-safe). If none match, choose closest.
+        close = np.isclose(cov, target_coverage, rtol=1e-5, atol=1e-8)
+
+        if np.any(close):
+            # Among exact matches, pick the one with smallest risk
+            candidates = np.where(close)[0]
+            idx = candidates[np.nanargmin(risk[candidates])]
+        else:
+            # No exact match: choose coverage closest to target; break ties by lowest risk
+            diffs = np.abs(cov - target_coverage)
+            min_diff = np.nanmin(diffs)
+            candidates = np.where(np.isclose(diffs, min_diff, rtol=0, atol=1e-12))[0]
+            idx = candidates[np.nanargmin(risk[candidates])]
+
     elif max_risk is not None:
-        # Largest coverage among τ with risk ≤ max_risk
+        # Keep this branch unchanged: largest coverage with risk ≤ max_risk
         mask = risk <= max_risk
         if mask.any():
             idx = np.nanargmax(np.where(mask, cov, -np.inf))
-    else:
+
+    if idx is None:
         # Fallback: maximize accuracy*coverage (balanced)
         score = (1.0 - risk) * cov
         idx = np.nanargmax(score)
 
     return {k: v[idx] for k, v in results.items()}
-
-import numpy as np
 
 # ---------- Set-valued rules (DST) ----------
 

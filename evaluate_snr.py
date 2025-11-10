@@ -37,7 +37,7 @@ def evaluate_model_on_snr_datasets(model, pipeline, args, folder, snr_range, mas
         # x = data['xte']
         # y = data['yte']
 
-        train_loader = pipeline.load_data_dronerc(256, offset=offset, data = path, mixed_snrs=True)
+        train_loader = pipeline.load_data_dronerc(256, offset=offset, data = path, mixed_snrs=True, args=args)
         # loader = pipeline.convert_to_loader(x, y, batch_size=256)
 
         acc, avg_unc = pipeline.test_model(
@@ -52,33 +52,35 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 snr_range = list(range(-20, 20, 2))
 
 # Paths to .npz datasets
-dataset_paths = ["/home/lunet/wsmr11/repos/radar/snr_grouped_processed", "/home/lunet/wsmr11/repos/radar/snr_splits"]
+dataset_paths = ["/home/lunet/wsmr11/repos/radar/snr_splits_radnist", "/home/lunet/wsmr11/repos/radar/snr_splits_radchar_noisy"]
 labels = ["RadNIST", "RadChar"]
 
 # Args and pipeline
 class args_class:
     def __init__(self):
-        self.multi_head = False
+        self.multi_head = True
         self.current_task = 0
         self.base_path = ""
         self.offset = 0
-
+        self.disjoint_classifier = False
 # --- Plot ---
 plt.figure(figsize=(10, 6), dpi=200)
 j=0
 colors = ['#1f77b4', '#5fa2ce']
-for model_path in ["radar/exp-radar-mixed-3-nodyn/task0/cumu_model.pt", "radar/exp-radar-mixed-3-nodyn/task1/cumu_model.pt"]:
+for i, model_path in enumerate(["radar/exp-radar-mixed-3-nodyn/task0/cumu_model.pt", "radar/exp-radar-elc-noisy-radhcar/task1/cumu_model.pt"]):
     print(model_path)
+    if i==0: continue
     path = dataset_paths[0] if "task0" in model_path else dataset_paths[1]
-    mask = "radar/exp-radar-mixed-3-nodyn/task0/cumu_mask.pkl" if "task0" in model_path else None
+    mask = None #"radar/exp-radar-mixed-3-nodyn/task0/cumu_mask.pkl" if "task0" in model_path else None
     task = "task0" if "task0" in model_path else "task1"
-    offset = 0 if "task0" in model_path else 6
-    model = ResNet18_1d(slice_size=1024, num_classes=11)
+    offset = 0 if "task0" in model_path else 0
+    model = ResNet18_1d(slice_size=1024, num_classes=12)
     model.load_state_dict(torch.load(model_path))
     model.to(device)
     model.eval()
    
     args=args_class()
+    args.current_task = i
     pipeline = CVTrainValTest(base_path="", save_path="")
 
     # --- Evaluate ---
@@ -91,7 +93,7 @@ for model_path in ["radar/exp-radar-mixed-3-nodyn/task0/cumu_model.pt", "radar/e
         plt.plot(snr_range, accs, label=f"{labels[j]} Accuracy", color=colors[j])
         plt.plot(snr_range, uncerts, linestyle='-.', label=f"{labels[j]} Uncertainty", color=colors[j])
     j+=1
-    save_test_outputs("eu_comparison/ELC/", results, aucs, filename=f"{task}_snr_results.pkl")
+    save_test_outputs("eu_comparison/ELC/", results, aucs, filename=f"{task}_snr_results_noisy.pkl")
 
 # plt.legend(["RadNIST Accuracy","RadNIST Uncertainty","RadChar Accuracy","RadChar Uncertainty"])
 plt.xlabel("SNR (dB)")

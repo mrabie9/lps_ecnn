@@ -184,7 +184,7 @@ class ResNet(nn.Module):
         super(ResNet, self).__init__()
         self.in_planes = 64
         self.slice_size = slice_size
-        self.classes_per_task = None #[6,5,8]
+        self.classes_per_task = [6,6]# classes_per_task #[6,5,8]
 
         self.conv1 = MaskConv1d(2, 64, kernel_size=7, stride=2, padding=1, bias=False)
         self.bn1 = nn.BatchNorm1d(64)
@@ -193,7 +193,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_blocks[1], stride=2)
         self.layer3 = self._make_layer(block, 256, num_blocks[2], stride=2)
         self.layer4 = self._make_layer(block, 512, num_blocks[3], stride=2)
-        # self.do = nn.Dropout(p=0.5)
+        self.do = nn.Dropout(p=0.2)
 
         if slice_size == 512:
             self.avg_pool_out_dim = int(self.slice_size / 64)
@@ -215,7 +215,7 @@ class ResNet(nn.Module):
             ])
 
             self.dm_layer = nn.ModuleList([
-                DM(num_class=task_classes, nu=0.9, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+                DM(num_class=task_classes, nu=0.7, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
                 for task_classes in self.classes_per_task
             ])
         else:
@@ -224,8 +224,8 @@ class ResNet(nn.Module):
                     n_classes=num_classes,
                     n_prototypes=num_classes * 20
                 )
-            self.dm_layer = DM(num_class=num_classes, nu=0.2, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
-        # print(classes_per_task)
+            self.dm_layer = DM(num_class=num_classes, nu=0.7, device=torch.device('cuda' if torch.cuda.is_available() else 'cpu'))
+        print(classes_per_task)
 
 
     def _make_layer(self, block, planes, num_blocks, stride):
@@ -240,12 +240,16 @@ class ResNet(nn.Module):
         out = F.relu(self.bn1(self.conv1(x)))
         # out = F.relu(self.conv1(x))
         out = self.layer1(out)
+        out = self.do(out)
         out = self.layer2(out)
+        out = self.do(out)
         out = self.layer3(out)
+        out = self.do(out)
         out = self.layer4(out)
-        out = F.avg_pool1d(out, self.avg_pool_out_dim)
+        out = self.do(out)
+        out = F.adaptive_avg_pool1d(out, 1)
         out = out.view(out.size(0), -1)
-        features = out#self.do(out)
+        features = self.do(out)
 
         if torch.isnan(features).any():
             raise ValueError("Model features contains NaNs")

@@ -181,8 +181,12 @@ class CVTrainValTest():
             self.x_test = np.asarray(np.load(data)['xte'])
             self.y_test = np.asarray(np.load(data)['yte'])
             print(self.x_test.shape)
-            self.x_train, _, self.y_train, _ = train_test_split(self.x_train, self.y_train, test_size=0.95, random_state=42, stratify=self.y_train)
-            self.x_test, _, self.y_test, _ = train_test_split(self.x_test, self.y_test, test_size=0.95, random_state=42, stratify=self.y_test)
+            scalar_train = preprocessing.StandardScaler().fit(self.x_train)
+            scalar_test = preprocessing.StandardScaler().fit(self.x_test)
+            self.x_train = scalar_train.transform(self.x_train)
+            self.x_test = scalar_test.transform(self.x_test)
+            # self.x_train, _, self.y_train, _ = train_test_split(self.x_train, self.y_train, test_size=0.95, random_state=42, stratify=self.y_train)
+            # self.x_test, _, self.y_test, _ = train_test_split(self.x_test, self.y_test, test_size=0.95, random_state=42, stratify=self.y_test)
         elif "radar" in self.base_path.lower():
             self.x_train = np.asarray(np.load(os.path.join(self.base_path, "radar_dataset.npz"))['xtr'])
             self.y_train = np.asarray(np.load(os.path.join(self.base_path, "radar_dataset.npz"))['ytr'])
@@ -192,8 +196,8 @@ class CVTrainValTest():
             from sklearn.model_selection import train_test_split
             # if args.current_task == 0:
                 # self.x_train, self.x_test, self.y_train, self.y_test = train_test_split(self.x_test, self.y_test, test_size=0.65, random_state=42, stratify=self.y_test)
-            #     self.x_train, _, self.y_train, _ = train_test_split(self.x_train, self.y_train, test_size=0.8, random_state=42, stratify=self.y_train)
-            #     self.x_test, _, self.y_test, _ = train_test_split(self.x_test, self.y_test, test_size=0.8, random_state=42, stratify=self.y_test)
+            self.x_train, _, self.y_train, _ = train_test_split(self.x_train, self.y_train, test_size=0.4, random_state=42, stratify=self.y_train)
+            self.x_test, _, self.y_test, _ = train_test_split(self.x_test, self.y_test, test_size=0.4, random_state=42, stratify=self.y_test)
             print(self.x_train.shape)
             # self.y_test = remap_labels(self.y_test, offset)
             # self.y_train = remap_labels(self.y_train, offset)
@@ -204,12 +208,12 @@ class CVTrainValTest():
             # self.x_test = self.x_test[te_mask]
             # self.y_test = self.y_test[te_mask]
 
-            # print(np.mean(self.x_train), np.std(self.x_train))
-            # scalar_train = preprocessing.StandardScaler().fit(self.x_train)
-            # scalar_test = preprocessing.StandardScaler().fit(self.x_test)
-            # self.x_train = scalar_train.transform(self.x_train)
-            # self.x_test = scalar_test.transform(self.x_test)
-            # print(np.mean(self.x_train), np.std(self.x_train))
+            print(np.mean(self.x_train), np.std(self.x_train))
+            scalar_train = preprocessing.StandardScaler().fit(self.x_train)
+            scalar_test = preprocessing.StandardScaler().fit(self.x_test)
+            self.x_train = scalar_train.transform(self.x_train)
+            self.x_test = scalar_test.transform(self.x_test)
+            print(np.mean(self.x_train), np.std(self.x_train))
             
             
 
@@ -264,8 +268,8 @@ class CVTrainValTest():
         # self.y_test[self.y_test !=0] = 1
 
         if offset is not None:
-            self.y_test = remap_labels(self.y_test, offset)
-            self.y_train = remap_labels(self.y_train, offset)
+            self.y_test = remap_labels(self.y_test, offset) if not args.multi_head else remap_labels(self.y_test, 0)
+            self.y_train = remap_labels(self.y_train, offset) if not args.multi_head else remap_labels(self.y_train, 0)
             print("Labels Remapped to: ", np.unique(self.y_train))
         
         # self.y_test = remap_labels(self.y_test, offset=0)
@@ -566,7 +570,6 @@ class CVTrainValTest():
             for i, (input, target) in enumerate(generator):
                 input = input.float().cuda()
                 target = target.long().cuda()
-
                 output, features, omega_batch, beliefs = model(input, args.current_task, return_features = True) if args.multi_head else model(input, return_features = True) 
                 # beliefs: [B,K], omegas: [B]
                 sets, EU, acts = set_valued_predict_from_masses(
