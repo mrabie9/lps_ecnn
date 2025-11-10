@@ -171,14 +171,14 @@ def get_auc(y_true, y_proba, class_names=None, plot=False):
 
     # Per-class ROC/AUC
     fprs, tprs, aucs = {}, {}, {}
-    plt.figure()
+    # plt.figure()
     for i in range(n_classes):
         fpr, tpr, _ = roc_curve(Y[:, i], y_proba[:, i])
         # print(fpr)
         # print(tpr)
         fprs[i], tprs[i] = fpr, tpr
         aucs[i] = auc(fpr, tpr)
-        plt.plot(fpr, tpr, label=f"{class_names[i]} (AUC={aucs[i]:.3f})")
+        # plt.plot(fpr, tpr, label=f"{class_names[i]} (AUC={aucs[i]:.3f})")
         # print("positives:", (Y[:, i] == 1).sum(), "negatives:", (y_proba[:, i] == 0).sum())
         # print("nan in y_true:", np.isnan(Y[:, i]).any(), "nan in y_score:", np.isnan(y_proba[:, i]).any())
 

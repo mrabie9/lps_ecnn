@@ -203,10 +203,12 @@ def parse_args_with_yaml(yaml_config, parser):
         mask_admm_epochs=yaml_config.get("mask-admm-epochs", 1),
         load_model=yaml_config.get("load-model", ""),
         load_model_pruned=yaml_config.get("load-model-pruned", ""),
+        multi_head = yaml_config.get("multi-head", False),
+        classes_per_task = yaml_config.get("classes-per-task", None)
     )
     return parser
 
-base_path = "mixed/"
+base_path = "radar/"
 yaml_file = base_path + "/args.yaml"
 yaml_config = load_yaml_config(yaml_file)
 
@@ -216,8 +218,8 @@ args = parser.parse_args()
 args.base_path = base_path
 args.save_path = args.base_path
 logs_dir = os.path.join("logs/" + base_path, args.exp_name)
-args.multi_head = False
-classes_per_task = [6, 5, 8]
+# args.multi_head = True
+classes_per_task = args.classes_per_task
 
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 if args.cuda:
@@ -942,6 +944,7 @@ if __name__ == '__main__':
         '''
         print("*************** Testing ***************")
         for i in range(task+1):
+            args.current_task = i
             '''
             Load Data
             '''
@@ -1003,7 +1006,7 @@ if __name__ == '__main__':
 
             print(f"Testing: Task {i} precision = {prec1}")
         args.load_model = save_path+"/cumu_model.pt"
-        model = model_loader(args)
+        model = model_loader(args, classes_per_task=classes_per_task)
         model.cuda()
         if args.fixed_layer:
             load_state_dict(args, model, state_dict, target_keys=args.fixed_layer)
